@@ -1,8 +1,7 @@
 package name.teemo.sslocal.mina.client;
 
 import name.teemo.sslocal.biz.SsSecretBiz;
-import name.teemo.sslocal.mina.IoSeesionPool;
-//import org.apache.log4j.Logger;
+import org.apache.log4j.Logger;
 import org.apache.mina.core.service.IoHandlerAdapter;
 import org.apache.mina.core.session.IdleStatus;
 import org.apache.mina.core.session.IoSession;
@@ -10,32 +9,35 @@ import org.apache.mina.core.session.IoSession;
 import com.hisunsray.commons.res.Config;
 
 public class ShadowSocksClientHandle extends IoHandlerAdapter{
-//	private static Logger logger = Logger.getLogger(ShadowSocksClientHandle.class);
+	private static Logger logger = Logger.getLogger(ShadowSocksClientHandle.class);
 	private IoSession s5Session;
 	public ShadowSocksClientHandle(IoSession s5Session){
 		this.s5Session = s5Session;
 	}
-	public void messageReceived(IoSession session, Object message) throws Exception{
-//		logger.info("ssReceived " + session.toString());
-//		logger.info(bytesToHex((byte[])message));
-		s5Session.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 0 , ((byte[])message), Config.getProperty("PASSWORD")));
+	public void messageReceived(IoSession ssSession, Object message) throws Exception{
+//		logger.info("SSReceived");
+		if(s5Session.isConnected()){
+			s5Session.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 0 , ((byte[])message), Config.getProperty("PASSWORD")));
+		}else{
+			ssSession.close(true);
+		}
 	}
 	
 	public void messageSent(IoSession ioSession, Object message) throws Exception {
-//		logger.info("messageSent " + ioSession.toString());
-//		logger.info(bytesToHex((byte[])message));
+//		logger.info("SSSent");
 	}
 	@Override
-	public void exceptionCaught(IoSession arg0, Throwable arg1)
-			throws Exception {
+	public void exceptionCaught(IoSession arg0, Throwable arg1)throws Exception {
+//		logger.info("SSExceptione");
 	}
 	@Override
 	public void inputClosed(IoSession arg0) throws Exception {
+		
 	}
 
 	@Override
-	public void sessionClosed(IoSession arg0) throws Exception {
-		IoSeesionPool.getInstance().getPoolMap().remove(s5Session);
+	public void sessionClosed(IoSession ssSession) throws Exception {
+		logger.info("SSClosed");
 		s5Session.close(true);
 	}
 	@Override

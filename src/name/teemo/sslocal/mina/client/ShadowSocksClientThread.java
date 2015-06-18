@@ -35,18 +35,17 @@ public class ShadowSocksClientThread implements Runnable{
 		DefaultIoFilterChainBuilder chain = connector.getFilterChain();
 		chain.addLast("codec", new ProtocolCodecFilter(new BinaryCodecFactory()));
 		connector.setHandler(new ShadowSocksClientHandle(s5Session));
-		IoSession session = null;
+		IoSession ssSession = null;
 		try{
 			ConnectFuture future = connector.connect(new InetSocketAddress(Config.getProperty("SERVER"),Integer.parseInt(Config.getProperty("SERVER_PORT"))));
 			future.awaitUninterruptibly();
-			session=future.getSession();
+			ssSession=future.getSession();
 			//发送Init POOL
 			SessionPoolValueVo spv = new SessionPoolValueVo();
-			spv.setSsSession(session);
+			spv.setSsSession(ssSession);
 			IoSeesionPool.getInstance().getPoolMap().put(s5Session, spv);
 			//发送DistServerInf
-			session.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 1 , BytesUtils.byteMerger(distAddr, distPort), Config.getProperty("PASSWORD")));
-
+			ssSession.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 1 , BytesUtils.byteMerger(distAddr, distPort), Config.getProperty("PASSWORD")));
 		}catch (Exception e) {
 			logger.error("SS-SERVER连接失败!",e);
 		}

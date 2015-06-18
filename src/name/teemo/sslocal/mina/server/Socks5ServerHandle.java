@@ -4,20 +4,21 @@ import name.teemo.sslocal.biz.SsSecretBiz;
 import name.teemo.sslocal.mina.IoSeesionPool;
 import name.teemo.sslocal.mina.client.ShadowSocksClientThread;
 
-//import org.apache.log4j.Logger;
+import org.apache.log4j.Logger;
 import org.apache.mina.core.service.IoHandlerAdapter;
+import org.apache.mina.core.session.IdleStatus;
 import org.apache.mina.core.session.IoSession;
 
 import com.hisunsray.commons.res.Config;
 
 public class Socks5ServerHandle extends IoHandlerAdapter{
-//	private static Logger log = Logger.getLogger(Socks5ServerHandle.class);
+	private static Logger log = Logger.getLogger(Socks5ServerHandle.class);
 //	
 //	private byte[] distAddr;
 //	private byte[] distPort;
 	@Override
-	public void messageReceived(IoSession session, Object message) throws Exception {
-//		log.info("s5Received " + session.toString());
+	public void messageReceived(IoSession s5Session, Object message) throws Exception {
+//		log.info("S5Received");
 		if(bytesToHex((byte[])message).startsWith("050100")){
 		
 			if(((byte[])message).length == 3){
@@ -32,9 +33,9 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 				
 				if (((byte[])message)[0] != (byte)5) {
 					System.out.println("Unknow protocol version.");
-					session.close(true);
+					s5Session.close(true);
 				}else{
-					session.write(new byte[]{5, 0});
+					s5Session.write(new byte[]{5, 0});
 				}
 				
 				
@@ -63,8 +64,8 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 				if (req[1] != 1) { 
 					// Command not supported
 					byte[] reply = {5, 7, 0, 1 ,0, 0, 0, 0, 1, 1};
-					session.write(reply); 
-					session.close(true);
+					s5Session.write(reply); 
+					s5Session.close(true);
 				}
 				byte addrType = req[3];
 				byte[] distAddr = null;
@@ -92,8 +93,8 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 				} else {
 					// Address type not supported
 					byte[] reply = {5, 8, 0, 1 ,0, 0, 0, 0, 1, 1};
-					session.write(reply); 
-					session.close(true);
+					s5Session.write(reply); 
+					s5Session.close(true);
 				}
 				
 				distAddr[0] = addrType;
@@ -117,30 +118,48 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 //	              o  X'09' to X'FF' unassigned
 				
 				
-				new Thread(new ShadowSocksClientThread(session, distAddr, distPort)).start();
-				Thread.sleep(1000);
-				session.write(new byte[]{5, 0, 0, 1 ,0, 0, 0, 0, 1, 1});
+				new Thread(new ShadowSocksClientThread(s5Session, distAddr, distPort)).start();
+				s5Session.write(new byte[]{5, 0, 0, 1 ,0, 0, 0, 0, 1, 1});
 			}
 			
 		}else{
 			//encode to remote
-//			log.info("s5Received " + session.toString());
-//			log.info(bytesToHex((byte[])message));
-			while(IoSeesionPool.getInstance().getPoolMap().get(session) == null){
-				Thread.sleep(100);
+			if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
+				Thread.sleep(1000);
+				if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
+					s5Session.close(true);
+				}else{
+					IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().get(s5Session).getSsSession();
+					ssSession.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 1 , ((byte[])message), Config.getProperty("PASSWORD")));
+				}
+			}else{
+				IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().get(s5Session).getSsSession();
+				ssSession.write(SsSecretBiz.getInstance().crypt(s5Session,Config.getProperty("METHOD").toLowerCase(), 1 , ((byte[])message), Config.getProperty("PASSWORD")));
 			}
-			IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().get(session).getSsSession();
-			ssSession.write(SsSecretBiz.getInstance().crypt(session,Config.getProperty("METHOD").toLowerCase(), 1 , ((byte[])message), Config.getProperty("PASSWORD")));
 		}
 	}
-
+	public void messageSent(IoSession ioSession, Object message) throws Exception {
+//		log.info("S5Sent");
+	}
 	@Override
-	public void sessionClosed(IoSession session) throws Exception {
-		while(IoSeesionPool.getInstance().getPoolMap().get(session) == null){
-			Thread.sleep(100);
+	public void sessionClosed(IoSession s5Session) throws Exception {
+//		log.info("S5Close");
+		if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
+			Thread.sleep(1000);
+			if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
+				//Do nothing
+			}else{
+				IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().remove(s5Session).getSsSession();
+				if(ssSession.isConnected()){
+					ssSession.close(true);
+				}
+			}
+		}else{
+			IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().remove(s5Session).getSsSession();
+			if(ssSession.isConnected()){
+				ssSession.close(true);
+			}
 		}
-		IoSession ssSession = IoSeesionPool.getInstance().getPoolMap().remove(session).getSsSession();
-		ssSession.close(true);
 	}
 
 	@Override
@@ -148,9 +167,24 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 	}
 
 	@Override
-	public void sessionOpened(IoSession session) throws Exception {
+	public void sessionOpened(IoSession s5Session) throws Exception {
+		s5Session.getConfig().setIdleTime(IdleStatus.BOTH_IDLE, 30);
+		s5Session.getConfig().setUseReadOperation(true);
 	}
-
+	@Override
+	public void sessionIdle(IoSession s5Session, IdleStatus status){
+		log.info("S5Idle " + status.toString());
+		if(s5Session.isConnected()){
+			s5Session.close(true);
+		}
+	}
+	@Override
+	public void exceptionCaught(IoSession s5Session, Throwable cause){
+		log.info("S5Exceptione");
+		if(s5Session.isConnected()){
+			s5Session.close(true);
+		}
+	}
 	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
 	public static String bytesToHex(byte[] bytes) {
 	    char[] hexChars = new char[bytes.length * 2];
