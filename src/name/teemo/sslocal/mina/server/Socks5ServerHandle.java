@@ -143,7 +143,7 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 	}
 	@Override
 	public void sessionClosed(IoSession s5Session) throws Exception {
-//		log.info("S5Close");
+		log.info("S5Close");
 		if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
 			Thread.sleep(1000);
 			if(IoSeesionPool.getInstance().getPoolMap().get(s5Session) == null){
@@ -168,8 +168,6 @@ public class Socks5ServerHandle extends IoHandlerAdapter{
 
 	@Override
 	public void sessionOpened(IoSession s5Session) throws Exception {
-		s5Session.getConfig().setIdleTime(IdleStatus.BOTH_IDLE, 30);
-		s5Session.getConfig().setUseReadOperation(true);
 	}
 	@Override
 	public void sessionIdle(IoSession s5Session, IdleStatus status){

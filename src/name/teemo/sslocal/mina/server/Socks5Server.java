@@ -27,6 +27,15 @@ public class Socks5Server {
 			((NioSocketAcceptor)acceptor).setReuseAddress(true);
 			acceptor.setHandler(new Socks5ServerHandle());        
 			acceptor.bind(new InetSocketAddress(Config.getProperty("LOCAL"),Integer.parseInt(Config.getProperty("LOCAL_PORT"))));
+			
+			acceptor.getSessionConfig().setReaderIdleTime(30);
+			acceptor.getSessionConfig().setWriterIdleTime(30);
+			acceptor.getSessionConfig().setWriteTimeout(Integer.parseInt(Config.getProperty("TIMEOUT")));
+			acceptor.getSessionConfig().setThroughputCalculationInterval(2);
+			acceptor.getSessionConfig().setReadBufferSize(256);
+			acceptor.getSessionConfig().setMaxReadBufferSize(2048);
+			acceptor.getSessionConfig().setUseReadOperation(false);
+			
 			log.info("S5Server waiting for connections on  ["+Config.getProperty("LOCAL") + ":" +Config.getProperty("LOCAL_PORT")+"] ...");
 			return true;
 		} catch (Exception e) {
