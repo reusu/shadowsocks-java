@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+						http://www.springframework.org/schema/beans/spring-beans.xsd">
+	<!-- API BIZ -->
+	<bean id="ssSecretBiz" class="name.teemo.sslocal.biz.SsSecretBiz" autowire="byType">
+		 <property name="ssSecretServiceImplMap">
+			<map>
+				<entry key="aes-256-cfb">
+					<bean id="ssSecretChannelBean" class="name.teemo.sslocal.entity.SsSecretChannelBean" autowire="byType">
+						<property name="channelImpl">
+							<value>aes256cfbCrypt</value>
+						</property>
+						<property name="method">
+							<value>aes-256-cfb</value>
+						</property>
+					</bean>
+				</entry>
+			</map> 
+		</property>
+	</bean>
+	
+</beans>
+<!-- scope="prototype -->
